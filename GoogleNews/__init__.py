@@ -4,6 +4,7 @@ import datetime
 import logging
 import re
 import urllib.request
+from urllib.parse import quote
 
 import dateparser
 from bs4 import BeautifulSoup as Soup
@@ -14,7 +15,7 @@ from dateutil.relativedelta import relativedelta
 
 ### METHODS
 
-def lexical_date_parser(date_to_check):
+def lexical_date_parser(date_to_check: str | None):
     if date_to_check=='':
         return ('',None)
     datetime_tmp=None
@@ -36,7 +37,7 @@ def lexical_date_parser(date_to_check):
     return date_tmp,datetime_tmp
 
 
-def define_date(date):
+def define_date(date: str):
     months = {'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Sept':9,'Oct':10,'Nov':11,'Dec':12, '01':1, '02':2, '03':3, '04':4, '05':5, '06':6, '07':7, '08':8, '09':9, '10':10, '11':11, '12':12}
     try:
         if ' ago' in date.lower():
@@ -69,7 +70,15 @@ def define_date(date):
 
 class GoogleNews:
 
-    def __init__(self,lang="en",period="",start="",end="",encode="utf-8",region=None):
+    def __init__(
+        self,
+        lang: str = "en",
+        period: str = "",
+        start: str = "",
+        end: str = "",
+        encode: str = "utf-8",
+        region: str | None = None
+    ):
         self.__texts = []
         self.__links = []
         self.__results = []
@@ -93,32 +102,32 @@ class GoogleNews:
     def getVersion(self):
         return self.__version
 
-    def enableException(self, enable=True):
+    def enableException(self, enable: bool = True):
         self.__exception = enable
 
-    def set_lang(self, lang):
+    def set_lang(self, lang: str):
         self.__lang = lang
 
-    def setlang(self, lang):
+    def setlang(self, lang: str):
         """Don't remove this, will affect old version user when upgrade"""
         self.set_lang(lang)
 
-    def set_period(self, period):
+    def set_period(self, period: str):
         self.__period = period
 
-    def setperiod(self, period):
+    def setperiod(self, period: str):
         """Don't remove this, will affect old version user when upgrade"""
         self.set_period(period)
 
-    def set_time_range(self, start, end):
+    def set_time_range(self, start: str, end: str):
         self.__start = start
         self.__end = end
 
-    def setTimeRange(self, start, end):
+    def setTimeRange(self, start: str, end: str):
         """Don't remove this, will affect old version user when upgrade"""
         self.set_time_range(start, end)
 
-    def set_encode(self, encode):
+    def set_encode(self, encode: str):
         self.__encode = encode
 
     def set_topic(self, topic: str):
@@ -127,11 +136,11 @@ class GoogleNews:
     def set_section(self, section: str):
         self.__section = section
 
-    def setencode(self, encode):
+    def setencode(self, encode: str):
         """Don't remove this, will affect old version user when upgrade"""
         self.set_encode(encode)
 
-    def search(self, key):
+    def search(self, key: str):
         """
         Searches for a term in google.com in the news section and retrieves the first page into __results.
         Parameters:
@@ -139,7 +148,7 @@ class GoogleNews:
         """
         self.__key = key
         if self.__encode != "":
-            self.__key = urllib.request.quote(self.__key.encode(self.__encode))
+            self.__key = quote(self.__key.encode(self.__encode))
         self.get_page()
 
     def build_response(self):
@@ -158,13 +167,13 @@ class GoogleNews:
         result = self.content.find_all("a",attrs={'data-ved': True})
         return result
 
-    def remove_after_last_fullstop(self, s):
+    def remove_after_last_fullstop(self, s: str):
         # Find the last occurrence of the full stop
         last_period_index = s.rfind('.')
         # Slice the string up to the last full stop
         return s[:last_period_index+1] if last_period_index != -1 else s
 
-    def page_at(self, page=1):
+    def page_at(self, page: int = 1):
         """
         Retrieves a specific page from google.com in the news sections into __results.
         Parameter:
@@ -221,7 +230,7 @@ class GoogleNews:
                 pass
         return results
 
-    def get_page(self, page=1):
+    def get_page(self, page: int = 1):
         """
         Retrieves a specific page from google.com in the news sections into __results.
         Parameter:
@@ -276,18 +285,18 @@ class GoogleNews:
             else:
                 pass
 
-    def getpage(self, page=1):
+    def getpage(self, page: int = 1):
         """Don't remove this, will affect old version user when upgrade"""
         self.get_page(page)
 
-    def get_news(self, key="",deamplify=False):
+    def get_news(self, key: str = "", deamplify: bool = False):
         if key != '':
             if self.__period != "":
                 key += f" when:{self.__period}"
         else:
             if self.__period != "":
                 key += f"when:{self.__period}"
-        key = urllib.request.quote(key.encode(self.__encode))
+        key = quote(key.encode(self.__encode))
         start = f'{self.__start[-4:]}-{self.__start[:2]}-{self.__start[3:5]}'
         end = f'{self.__end[-4:]}-{self.__end[:2]}-{self.__end[3:5]}'
 
@@ -402,11 +411,11 @@ class GoogleNews:
     def total_count(self):
         return self.__totalcount
 
-    def result(self,sort=False):
+    def result(self, sort: bool = False):
         """Don't remove this, will affect old version user when upgrade"""
         return self.results(sort)
 
-    def results(self,sort=False):
+    def results(self, sort: bool = False):
         """Returns the __results.
         New feature: include datatime and sort the articles in decreasing order"""
         results=self.__results
