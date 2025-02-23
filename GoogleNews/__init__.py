@@ -106,24 +106,12 @@ class GoogleNews:
     def set_lang(self, lang: str):
         self.__lang = lang
 
-    def setlang(self, lang: str):
-        """Don't remove this, will affect old version user when upgrade"""
-        self.set_lang(lang)
-
     def set_period(self, period: str):
         self.__period = period
-
-    def setperiod(self, period: str):
-        """Don't remove this, will affect old version user when upgrade"""
-        self.set_period(period)
 
     def set_time_range(self, start: str, end: str):
         self.__start = start
         self.__end = end
-
-    def setTimeRange(self, start: str, end: str):
-        """Don't remove this, will affect old version user when upgrade"""
-        self.set_time_range(start, end)
 
     def set_topic(self, topic: str):
         self.__topic = topic
@@ -274,10 +262,6 @@ class GoogleNews:
             else:
                 pass
 
-    def getpage(self, page: int = 1):
-        """Don't remove this, will affect old version user when upgrade"""
-        self.get_page(page)
-
     def get_news(self, key: str = "", deamplify: bool = False):
         if key != '':
             if self.__period != "":
@@ -400,10 +384,6 @@ class GoogleNews:
     def total_count(self):
         return self.__totalcount
 
-    def result(self, sort: bool = False):
-        """Don't remove this, will affect old version user when upgrade"""
-        return self.results(sort)
-
     def results(self, sort: bool = False):
         """Returns the __results.
         New feature: include datatime and sort the articles in decreasing order"""
@@ -423,10 +403,6 @@ class GoogleNews:
     def get_texts(self):
         """Returns only the __texts of the __results."""
         return self.__texts
-
-    def gettext(self):
-        """Don't remove this, will affect old version user when upgrade"""
-        return self.get_texts()
 
     def get_links(self):
         """Returns only the __links of the __results."""

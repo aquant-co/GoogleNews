@@ -13,7 +13,7 @@ class NumbersTest(unittest.TestCase):
   def testResultNumberWithDefaultPage(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    length = len(googlenews.result())
+    length = len(googlenews.results())
     self.assertNotEqual(length, 0)
     print('Result length with only one page is correct')
 
@@ -21,14 +21,14 @@ class NumbersTest(unittest.TestCase):
     googlenews = GoogleNews()
     googlenews.search(keyword)
     googlenews.get_page(2)
-    length = len(googlenews.result())
+    length = len(googlenews.results())
     self.assertNotEqual(length, 0)
     print('Result length with two pages is correct')
 
   def testEncode(self):
     googlenews = GoogleNews(lang='ru')
     googlenews.search("Моцарт")
-    length = len(googlenews.result())
+    length = len(googlenews.results())
     self.assertNotEqual(length, 0)
     print('Encoding result is not empty')
 
@@ -58,7 +58,7 @@ class TestStringMethods(unittest.TestCase):
   def testResultContainsKeyword(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    result = googlenews.result()[0]
+    result = googlenews.results()[0]
     print(result.get('title').lower()+result.get('desc').lower())
     self.assertIn(keyword.lower(), result.get('title').lower()+result.get('desc').lower())
     print('Result contains keyword')
@@ -66,7 +66,7 @@ class TestStringMethods(unittest.TestCase):
   def testResultHasLink(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    result = googlenews.result()[0]
+    result = googlenews.results()[0]
     print(result.get('link').lower())
     self.assertIn('http', result.get('link').lower())
     print('Result contains http link')
@@ -74,7 +74,7 @@ class TestStringMethods(unittest.TestCase):
   def testResultHasImage(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    result = googlenews.result()[0]
+    result = googlenews.results()[0]
     print(result.get('img').lower())
     self.assertIn('base64', result.get('img').lower())
     print('Result contains image')
@@ -82,7 +82,7 @@ class TestStringMethods(unittest.TestCase):
   def testResultHasTitle(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    result = googlenews.result()[0]
+    result = googlenews.results()[0]
     print(result.get('title').lower())
     self.assertIsNot('', result.get('title').lower())
     print('Result title is not empty')
@@ -90,7 +90,7 @@ class TestStringMethods(unittest.TestCase):
   def testResultHasMedia(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    result = googlenews.result()[0]
+    result = googlenews.results()[0]
     print(result.get('media').lower())
     self.assertIsNot('', result.get('media').lower())
     print('Result media is not empty')
@@ -98,7 +98,7 @@ class TestStringMethods(unittest.TestCase):
   def testResultHasDate(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)
-    result = googlenews.result()[0]
+    result = googlenews.results()[0]
     print(result.get('date').lower())
     self.assertIsNot('', result.get('date').lower())
     print('Result date is not empty')
