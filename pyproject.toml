@@ -1,0 +1,37 @@
+[project]
+name = "GoogleNews"
+version = "2.0.0"
+description = "Google News search for Python"
+authors = [
+    {name = "Hurin Hu", email = "hurin@live.ca"},
+    {name = "Lucius Gaitán", email = "lucius@luciusgaitan.com"}
+]
+dependencies = ["dateparser>=1.2.1", "beautifulsoup4>=4.13.3", "python-dateutil>=2.9.0.post0"]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+classifiers=[
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: AsyncIO",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[dependency-groups]
+lint = ["ruff>=0.9.7"]
+test = ["coverage>=7.6.12"]# , "coveralls>=4.0.1"]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+build.includes = ["GoogleNews"]
+build.excludes = ["tests"]
