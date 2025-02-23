@@ -405,8 +405,8 @@ class GoogleNews:
         soup = BeautifulSoup(page, "html.parser")
         stats = soup.find_all("div", id="result-stats")
         if stats:
-            stats = re.search(r'[\d,]+', stats[0].text)
-            self._total_count = int(stats.group().replace(',', ''))
+            stats = re.search(r"[\d,]+", stats[0].text)
+            self._total_count = int(stats.group(0).replace(',', '') if stats else 0)
         else:
             #TODO might want to add output for user to know no data was found
             self._total_count = 0
