@@ -3,12 +3,11 @@ import copy
 import datetime
 import logging
 import re
-import urllib.request
 from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 import dateparser
-from bs4 import BeautifulSoup as Soup
-from bs4 import ResultSet
+from bs4 import BeautifulSoup, ResultSet
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 
@@ -82,11 +81,11 @@ class GoogleNews:
         self.__totalcount = 0
         self.user_agent = 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0'
         self.__lang = lang
+
+        self.headers = {"User-Agent": self.user_agent}
         if region:
-            self.accept_language= lang + '-' + region + ',' + lang + ';q=0.9'
-            self.headers = {'User-Agent': self.user_agent, 'Accept-Language': self.accept_language}
-        else:
-            self.headers = {'User-Agent': self.user_agent}
+            self.headers["Accept-Language"] = f"{lang}-{region},{lang};q=0.9"
+
         self.__period = period
         self.__start = start
         self.__end = end
@@ -126,22 +125,6 @@ class GoogleNews:
         self.__key = quote(key)
         self.get_page()
 
-    def build_response(self):
-        self.req = urllib.request.Request(self.url.replace("search?","search?hl="+self.__lang+"&gl="+self.__lang+"&"), headers=self.headers)
-        self.response = urllib.request.urlopen(self.req)
-        self.page = self.response.read()
-        self.content = Soup(self.page, "html.parser")
-        stats = self.content.find_all("div", id="result-stats")
-        if stats and isinstance(stats, ResultSet):
-            stats = re.search(r'[\d,]+', stats[0].text)
-            self.__totalcount = int(stats.group().replace(',', ''))
-        else:
-            #TODO might want to add output for user to know no data was found
-            self.__totalcount = None
-            logging.debug('Total count is not available when sort by date')
-        result = self.content.find_all("a",attrs={'data-ved': True})
-        return result
-
     def remove_after_last_fullstop(self, s: str):
         # Find the last occurrence of the full stop
         last_period_index = s.rfind('.')
@@ -162,10 +145,11 @@ class GoogleNews:
                 self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,self.__period,(10 * (page - 1)))
             else:
                 self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,(10 * (page - 1)))
-        except AttributeError:
-            raise AttributeError("You need to run a search() before using get_page().")
+        except AttributeError as error:
+            raise AttributeError("You need to run a search() before using get_page().") from error
+
         try:
-            result = self.build_response()
+            result = self._build_response()
             for item in result:
                 try:
                     tmp_text = item.find("h3").text.replace("\n","")
@@ -194,7 +178,6 @@ class GoogleNews:
                 except Exception:
                     tmp_img = ''
                 results.append({'title': tmp_text, 'media': tmp_media,'date': tmp_date,'datetime':define_date(tmp_date),'desc': tmp_desc, 'link': tmp_link,'img': tmp_img})
-            self.response.close()
         except Exception as e_parser:
             print(e_parser)
             if self.__exception:
@@ -219,7 +202,7 @@ class GoogleNews:
         except AttributeError:
             raise AttributeError("You need to run a search() before using get_page().")
         try:
-            result = self.build_response()
+            result = self._build_response()
             for item in result:
                 try:
                     tmp_text = item.find("h3").text.replace("\n","")
@@ -248,7 +231,6 @@ class GoogleNews:
                 except Exception:
                     tmp_img = ''
                 self.__results.append({'title': tmp_text, 'media': tmp_media,'date': tmp_date,'datetime':define_date(tmp_date),'desc': tmp_desc, 'link': tmp_link,'img': tmp_img})
-            self.response.close()
         except Exception as e_parser:
             print(e_parser)
             if self.__exception:
@@ -284,10 +266,11 @@ class GoogleNews:
 
 
         try:
-            self.req = urllib.request.Request(self.url, headers=self.headers)
-            self.response = urllib.request.urlopen(self.req)
-            self.page = self.response.read()
-            self.content = Soup(self.page, "html.parser")
+            request = Request(self.url, headers=self.headers)
+            with urlopen(request) as response:
+                page = response.read()
+
+            self.content = BeautifulSoup(page, "html.parser")
             articles = self.content.select('article')
             for article in articles:
                 try:
@@ -355,17 +338,16 @@ class GoogleNews:
                         reporter = None
                     # collection
                     self.__results.append({'title':title,
-                                           'desc':desc,
-                                           'date':date,
-                                           'datetime':define_date(date),
-                                           'link':link,
-                                           'img':img,
-                                           'media':media,
-                                           'site':site,
-                                           'reporter':reporter})
+                                        'desc':desc,
+                                        'date':date,
+                                        'datetime':define_date(date),
+                                        'link':link,
+                                        'img':img,
+                                        'media':media,
+                                        'site':site,
+                                        'reporter':reporter})
                 except Exception as e_article:
                     print(e_article)
-            self.response.close()
         except Exception as e_parser:
             print(e_parser)
             if self.__exception:
@@ -405,3 +387,24 @@ class GoogleNews:
     def clear(self):
         self.__results = []
         self.__totalcount = 0
+
+    def _build_response(self):
+        request = Request(
+            self.url.replace("search?", f"search?hl={self.__lang}&gl={self.__lang}&"),
+            headers=self.headers
+        )
+        with urlopen(request) as response:
+            page = response.read()
+
+        self.content = BeautifulSoup(page, "html.parser")
+        stats = self.content.find_all("div", id="result-stats")
+        if stats and isinstance(stats, ResultSet):
+            stats = re.search(r'[\d,]+', stats[0].text)
+            self.__totalcount = int(stats.group().replace(',', ''))
+        else:
+            #TODO might want to add output for user to know no data was found
+            self.__totalcount = None
+            logging.debug('Total count is not available when sort by date')
+
+        result = self.content.find_all("a", attrs={'data-ved': True})
+        return result
