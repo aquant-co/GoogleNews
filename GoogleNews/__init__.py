@@ -78,8 +78,6 @@ class GoogleNews:
         end: str = "",
         region: str | None = None
     ):
-        self.__texts = []
-        self.__links = []
         self.__results = []
         self.__totalcount = 0
         self.user_agent = 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0'
@@ -195,8 +193,6 @@ class GoogleNews:
                     tmp_img = item.find("img").get("src")
                 except Exception:
                     tmp_img = ''
-                self.__texts.append(tmp_text)
-                self.__links.append(tmp_link)
                 results.append({'title': tmp_text, 'media': tmp_media,'date': tmp_date,'datetime':define_date(tmp_date),'desc': tmp_desc, 'link': tmp_link,'img': tmp_img})
             self.response.close()
         except Exception as e_parser:
@@ -251,8 +247,6 @@ class GoogleNews:
                     tmp_img = item.find("img").get("src")
                 except Exception:
                     tmp_img = ''
-                self.__texts.append(tmp_text)
-                self.__links.append(tmp_link)
                 self.__results.append({'title': tmp_text, 'media': tmp_media,'date': tmp_date,'datetime':define_date(tmp_date),'desc': tmp_desc, 'link': tmp_link,'img': tmp_img})
             self.response.close()
         except Exception as e_parser:
@@ -335,8 +329,6 @@ class GoogleNews:
                         except Exception as deamp_e:
                             print(deamp_e)
                             link = None
-                    self.__texts.append(title)
-                    self.__links.append(link)
                     if link.startswith('https://www.youtube.com/watch?v='):
                         desc = 'video'
                     # image
@@ -401,15 +393,15 @@ class GoogleNews:
         return results
 
     def get_texts(self):
-        """Returns only the __texts of the __results."""
-        return self.__texts
+        """ Returns only the __texts of the __results. """
+
+        return [result["title"] for result in self.__results]
 
     def get_links(self):
-        """Returns only the __links of the __results."""
-        return self.__links
+        """ Returns only the __links of the __results. """
+
+        return [result["link"] for result in self.__results]
 
     def clear(self):
-        self.__texts = []
-        self.__links = []
         self.__results = []
         self.__totalcount = 0
