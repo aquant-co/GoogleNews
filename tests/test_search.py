@@ -51,8 +51,8 @@ class TestStringMethods(unittest.TestCase):
 
   def testVersion(self):
     googlenews = GoogleNews()
-    version = '1.6.15'
-    self.assertIn(version, googlenews.getVersion())
+    version = '2.0.0'
+    self.assertIn(version, googlenews.get_version())
     print('Latest version matched')
 
   def testResultContainsKeyword(self):

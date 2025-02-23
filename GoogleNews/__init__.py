@@ -1,15 +1,15 @@
 ### MODULES
 import copy
-import datetime
 import logging
 import re
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import dateparser
-from bs4 import BeautifulSoup, ResultSet
+from bs4 import BeautifulSoup
 from dateutil.parser import parse
-from dateutil.relativedelta import relativedelta
+
+from .models import Result
 
 
 ### METHODS
@@ -35,39 +35,42 @@ def lexical_date_parser(date_to_check: str | None):
         date_tmp=date_tmp[1:]
     return date_tmp,datetime_tmp
 
-
-def define_date(date: str):
-    months = {'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Sept':9,'Oct':10,'Nov':11,'Dec':12, '01':1, '02':2, '03':3, '04':4, '05':5, '06':6, '07':7, '08':8, '09':9, '10':10, '11':11, '12':12}
-    try:
-        if ' ago' in date.lower():
-            q = int(date.split()[-3])
-            if 'minutes' in date.lower() or 'mins' in date.lower():
-                return datetime.datetime.now() + relativedelta(minutes=-q)
-            elif 'hour' in date.lower():
-                return datetime.datetime.now() + relativedelta(hours=-q)
-            elif 'day' in date.lower():
-                return datetime.datetime.now() + relativedelta(days=-q)
-            elif 'week' in date.lower():
-                return datetime.datetime.now() + relativedelta(days=-7*q)
-            elif 'month' in date.lower():
-                return datetime.datetime.now() + relativedelta(months=-q)
-        elif 'yesterday' in date.lower():
-            return datetime.datetime.now() + relativedelta(days=-1)
-        else:
-            date_list = date.replace('/',' ').split(' ')
-            if len(date_list) == 2:
-                date_list.append(datetime.datetime.now().year)
-            elif len(date_list) == 3:
-                if date_list[0] == '':
-                    date_list[0] = '1'
-            return datetime.datetime(day=int(date_list[0]), month=months[date_list[1]], year=int(date_list[2]))
-    except:
-        return float('nan')
-
-
 ### CLASSEs
 
 class GoogleNews:
+    __slots__ = (
+        "_lang",
+        "_user_agent",
+
+        "_search_key",
+        "_topic",
+        "_topic_section",
+
+        "_period",
+        "_start",
+        "_end",
+
+        "_results",
+        "_total_count",
+
+        "_exception"
+    )
+
+    _lang: str
+    _user_agent: str
+
+    _search_key: str | None
+    _topic: str | None
+    _topic_section: str | None
+
+    _period: str | None
+    _start: str | None
+    _end: str | None
+
+    _results: list[Result]
+    _total_count: int
+
+    _exception: bool
 
     def __init__(
         self,
@@ -75,54 +78,63 @@ class GoogleNews:
         period: str = "",
         start: str = "",
         end: str = "",
-        region: str | None = None
     ):
-        self.__results = []
-        self.__totalcount = 0
-        self.user_agent = 'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0'
-        self.__lang = lang
+        self._lang = lang
+        self._user_agent = "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:64.0) Gecko/20100101 Firefox/64.0"
 
-        self.headers = {"User-Agent": self.user_agent}
-        if region:
-            self.headers["Accept-Language"] = f"{lang}-{region},{lang};q=0.9"
+        self._search_key = None
+        self._topic = None
+        self._topic_section = None
 
-        self.__period = period
-        self.__start = start
-        self.__end = end
-        self.__exception = False
-        self.__version = '1.6.15'
-        self.__topic = None
-        self.__section = None
+        self._period = period
+        self._start = start
+        self._end = end
 
-    def getVersion(self):
-        return self.__version
+        self._results = []
+        self._total_count = 0
 
-    def enableException(self, enable: bool = True):
-        self.__exception = enable
+        self._exception = False
+
+    @property
+    def _headers(self):
+        headers = {"User-Agent": self._user_agent}
+
+        if "-" in self._lang:
+            lang, region = self._lang.split("-")
+            headers["Accept-Language"] = f"{lang}-{region},{lang};q=0.9"
+
+        return headers
+
+    def get_version(self):
+        from importlib.metadata import version
+        return version("GoogleNews")
+
+    def enable_exception(self, enable: bool = True):
+        self._exception = enable
 
     def set_lang(self, lang: str):
-        self.__lang = lang
+        self._lang = lang
 
     def set_period(self, period: str):
-        self.__period = period
+        self._period = period
 
     def set_time_range(self, start: str, end: str):
-        self.__start = start
-        self.__end = end
+        self._start = start
+        self._end = end
 
     def set_topic(self, topic: str):
-        self.__topic = topic
+        self._topic = topic
 
-    def set_section(self, section: str):
-        self.__section = section
+    def set_topic_section(self, topic_section: str):
+        self._topic_section = topic_section
 
-    def search(self, key: str):
+    def search(self, search_key: str):
         """
         Searches for a term in google.com in the news section and retrieves the first page into __results.
         Parameters:
         key = the search term
         """
-        self.__key = quote(key)
+        self._search_key = quote(search_key)
         self.get_page()
 
     def remove_after_last_fullstop(self, s: str):
@@ -137,32 +149,33 @@ class GoogleNews:
         Parameter:
         page = number of the page to be retrieved
         """
-        results = []
+        results: list[Result] = []
         try:
-            if self.__start != "" and self.__end != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,self.__start,self.__end,(10 * (page - 1)))
-            elif self.__period != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,self.__period,(10 * (page - 1)))
+            if self._start != "" and self._end != "":
+                url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,self._start,self._end,(10 * (page - 1)))
+            elif self._period != "":
+                url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,self._period,(10 * (page - 1)))
             else:
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,(10 * (page - 1)))
+                url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,(10 * (page - 1)))
         except AttributeError as error:
             raise AttributeError("You need to run a search() before using get_page().") from error
 
         try:
-            result = self._build_response()
+            result = self._build_response(url)
             for item in result:
+                title = ""
+                title_el = item.find("h3")
+                if title_el:
+                    title = title_el.get_text().replace("\n", "")
+
                 try:
-                    tmp_text = item.find("h3").text.replace("\n","")
+                    link = item.get("href").replace('/url?esrc=s&q=&rct=j&sa=U&url=','')
                 except Exception:
-                    tmp_text = ''
+                    link = ''
                 try:
-                    tmp_link = item.get("href").replace('/url?esrc=s&q=&rct=j&sa=U&url=','')
+                    media = item.find('div').find('div').find('div').find_next_sibling('div').text
                 except Exception:
-                    tmp_link = ''
-                try:
-                    tmp_media = item.find('div').find('div').find('div').find_next_sibling('div').text
-                except Exception:
-                    tmp_media = ''
+                    media = ''
                 try:
                     tmp_date = item.find('div').find_next_sibling('div').find('span').text
                     tmp_date,tmp_datetime=lexical_date_parser(tmp_date)
@@ -170,20 +183,28 @@ class GoogleNews:
                     tmp_date = ''
                     tmp_datetime=None
                 try:
-                    tmp_desc = self.remove_after_last_fullstop(item.find('div').find_next_sibling('div').find('div').find_next_sibling('div').find('div').find('div').find('div').text).replace('\n','')
+                    desc = self.remove_after_last_fullstop(item.find('div').find_next_sibling('div').find('div').find_next_sibling('div').find('div').find('div').find('div').text).replace('\n','')
                 except Exception:
-                    tmp_desc = ''
+                    desc = ''
                 try:
-                    tmp_img = item.find("img").get("src")
+                    img = item.find("img").get("src")
                 except Exception:
-                    tmp_img = ''
-                results.append({'title': tmp_text, 'media': tmp_media,'date': tmp_date,'datetime':define_date(tmp_date),'desc': tmp_desc, 'link': tmp_link,'img': tmp_img})
+                    img = ''
+
+                results.append({
+                    'title': title,
+                    'media': media,
+                    'date': tmp_date,
+                    'datetime': dateparser.parse(tmp_date),
+                    'desc': desc,
+                    'link': link,
+                    'img': img
+                })
         except Exception as e_parser:
             print(e_parser)
-            if self.__exception:
-                raise Exception(e_parser)
-            else:
-                pass
+            if self._exception:
+                raise
+
         return results
 
     def get_page(self, page: int = 1):
@@ -193,29 +214,30 @@ class GoogleNews:
         page = number of the page to be retrieved
         """
         try:
-            if self.__start != "" and self.__end != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,self.__start,self.__end,(10 * (page - 1)))
-            elif self.__period != "":
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,self.__period,(10 * (page - 1)))
+            if self._start != "" and self._end != "":
+                url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,self._start,self._end,(10 * (page - 1)))
+            elif self._period != "":
+                url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},qdr:{},,sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,self._period,(10 * (page - 1)))
             else:
-                self.url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(self.__key,self.__lang,self.__lang,(10 * (page - 1)))
-        except AttributeError:
-            raise AttributeError("You need to run a search() before using get_page().")
+                url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,(10 * (page - 1)))
+        except AttributeError as error:
+            raise AttributeError("You need to run a search() before using get_page().") from error
+
         try:
-            result = self._build_response()
+            result = self._build_response(url)
             for item in result:
                 try:
-                    tmp_text = item.find("h3").text.replace("\n","")
+                    text = item.find("h3").text.replace("\n","")
                 except Exception:
-                    tmp_text = ''
+                    text = ''
                 try:
-                    tmp_link = item.get("href").replace('/url?esrc=s&q=&rct=j&sa=U&url=','')
+                    link = item.get("href").replace('/url?esrc=s&q=&rct=j&sa=U&url=','')
                 except Exception:
-                    tmp_link = ''
+                    link = ''
                 try:
-                    tmp_media = item.find('div').find('div').find('div').find_next_sibling('div').text
+                    media = item.find('div').find('div').find('div').find_next_sibling('div').text
                 except Exception:
-                    tmp_media = ''
+                    media = ''
                 try:
                     tmp_date = item.find('div').find_next_sibling('div').find('span').text
                     tmp_date,tmp_datetime=lexical_date_parser(tmp_date)
@@ -223,55 +245,46 @@ class GoogleNews:
                     tmp_date = ''
                     tmp_datetime=None
                 try:
-                    tmp_desc = self.remove_after_last_fullstop(item.find('div').find_next_sibling('div').find('div').find_next_sibling('div').find('div').find('div').find('div').text).replace('\n','')
+                    desc = self.remove_after_last_fullstop(item.find('div').find_next_sibling('div').find('div').find_next_sibling('div').find('div').find('div').find('div').text).replace('\n','')
                 except Exception:
-                    tmp_desc = ''
+                    desc = ''
                 try:
                     tmp_img = item.find("img").get("src")
                 except Exception:
                     tmp_img = ''
-                self.__results.append({'title': tmp_text, 'media': tmp_media,'date': tmp_date,'datetime':define_date(tmp_date),'desc': tmp_desc, 'link': tmp_link,'img': tmp_img})
+                self._results.append({'title': text, 'media': media,'date': tmp_date,'datetime':dateparser.parse(tmp_date),'desc': desc, 'link': link,'img': tmp_img})
         except Exception as e_parser:
             print(e_parser)
-            if self.__exception:
-                raise Exception(e_parser)
-            else:
-                pass
+            if self._exception:
+                raise
 
     def get_news(self, key: str = "", deamplify: bool = False):
-        if key != '':
-            if self.__period != "":
-                key += f" when:{self.__period}"
-        else:
-            if self.__period != "":
-                key += f"when:{self.__period}"
+        if self._period != "":
+            key += f"when:{self._period}"
+
         key = quote(key)
-        start = f'{self.__start[-4:]}-{self.__start[:2]}-{self.__start[3:5]}'
-        end = f'{self.__end[-4:]}-{self.__end[:2]}-{self.__end[3:5]}'
 
-        if self.__start == '' or self.__end == '':
-            self.url = 'https://news.google.com/search?q={}&hl={}'.format(
-                key, self.__lang.lower())
+        if self._start and self._end:
+            start = f'{self._start[-4:]}-{self._start[:2]}-{self._start[3:5]}'
+            end = f'{self._end[-4:]}-{self._end[:2]}-{self._end[3:5]}'
+
+            url = f"https://news.google.com/search?q={key}+before:{end}+after:{start}&hl={self._lang}"
         else:
-            self.url = 'https://news.google.com/search?q={}+before:{}+after:{}&hl={}'.format(
-                key, end, start, self.__lang.lower())
+            url = f"https://news.google.com/search?q={key}&hl={self._lang}"
 
-        if self.__topic:
-            self.url = 'https://news.google.com/topics/{}'.format(
-                self.__topic)
+        if self._topic:
+            url = f"https://news.google.com/topics/{self._topic}"
 
-            if self.__section:
-                self.url = 'https://news.google.com/topics/{}/sections/{}'.format(
-                self.__topic, self.__section)
-
+            if self._topic_section:
+                url += f"/sections/{self._topic_section}"
 
         try:
-            request = Request(self.url, headers=self.headers)
+            request = Request(url, headers=self._headers)
             with urlopen(request) as response:
                 page = response.read()
 
-            self.content = BeautifulSoup(page, "html.parser")
-            articles = self.content.select('article')
+            soup = BeautifulSoup(page, "html.parser")
+            articles = soup.select('article')
             for article in articles:
                 try:
                     # title
@@ -337,10 +350,10 @@ class GoogleNews:
                     except:
                         reporter = None
                     # collection
-                    self.__results.append({'title':title,
+                    self._results.append({'title':title,
                                         'desc':desc,
                                         'date':date,
-                                        'datetime':define_date(date),
+                                        'datetime': dateparser.parse(date),
                                         'link':link,
                                         'img':img,
                                         'media':media,
@@ -350,61 +363,54 @@ class GoogleNews:
                     print(e_article)
         except Exception as e_parser:
             print(e_parser)
-            if self.__exception:
-                raise Exception(e_parser)
-            else:
-                pass
+            if self._exception:
+                raise
 
     def total_count(self):
-        return self.__totalcount
+        return self._total_count
 
     def results(self, sort: bool = False):
-        """Returns the __results.
-        New feature: include datatime and sort the articles in decreasing order"""
-        results=self.__results
+        """
+        Returns the __results.
+        New feature: include datatime and sort the articles in decreasing order
+        """
+
         if sort:
-            try:
-                results.sort(key = lambda x:x['datetime'],reverse=True)
-            except Exception as e_sort:
-                print(e_sort)
-                if self.__exception:
-                    raise Exception(e_sort)
-                else:
-                    pass
-                results=self.__results
-        return results
+            self._results.sort(key=lambda r: r["datetime"], reverse=True)
+
+        return self._results
 
     def get_texts(self):
         """ Returns only the __texts of the __results. """
 
-        return [result["title"] for result in self.__results]
+        return [result["title"] for result in self._results]
 
     def get_links(self):
         """ Returns only the __links of the __results. """
 
-        return [result["link"] for result in self.__results]
+        return [result["link"] for result in self._results]
 
     def clear(self):
-        self.__results = []
-        self.__totalcount = 0
+        self._results = []
+        self._total_count = 0
 
-    def _build_response(self):
+    def _build_response(self, url: str):
         request = Request(
-            self.url.replace("search?", f"search?hl={self.__lang}&gl={self.__lang}&"),
-            headers=self.headers
+            url.replace("search?", f"search?hl={self._lang}&gl={self._lang}&"),
+            headers=self._headers
         )
         with urlopen(request) as response:
             page = response.read()
 
-        self.content = BeautifulSoup(page, "html.parser")
-        stats = self.content.find_all("div", id="result-stats")
-        if stats and isinstance(stats, ResultSet):
+        soup = BeautifulSoup(page, "html.parser")
+        stats = soup.find_all("div", id="result-stats")
+        if stats:
             stats = re.search(r'[\d,]+', stats[0].text)
-            self.__totalcount = int(stats.group().replace(',', ''))
+            self._total_count = int(stats.group().replace(',', ''))
         else:
             #TODO might want to add output for user to know no data was found
-            self.__totalcount = None
+            self._total_count = 0
             logging.debug('Total count is not available when sort by date')
 
-        result = self.content.find_all("a", attrs={'data-ved': True})
+        result = soup.find_all("a", attrs={'data-ved': True})
         return result
