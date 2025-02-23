@@ -26,7 +26,7 @@ class NumbersTest(unittest.TestCase):
     print('Result length with two pages is correct')
 
   def testEncode(self):
-    googlenews = GoogleNews(lang='ru',encode='utf-8')
+    googlenews = GoogleNews(lang='ru')
     googlenews.search("Моцарт")
     length = len(googlenews.result())
     self.assertNotEqual(length, 0)
@@ -54,7 +54,7 @@ class TestStringMethods(unittest.TestCase):
     version = '1.6.15'
     self.assertIn(version, googlenews.getVersion())
     print('Latest version matched')
-    
+
   def testResultContainsKeyword(self):
     googlenews = GoogleNews()
     googlenews.search(keyword)

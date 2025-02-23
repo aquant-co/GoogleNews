@@ -76,7 +76,6 @@ class GoogleNews:
         period: str = "",
         start: str = "",
         end: str = "",
-        encode: str = "utf-8",
         region: str | None = None
     ):
         self.__texts = []
@@ -93,7 +92,6 @@ class GoogleNews:
         self.__period = period
         self.__start = start
         self.__end = end
-        self.__encode = encode
         self.__exception = False
         self.__version = '1.6.15'
         self.__topic = None
@@ -127,18 +125,11 @@ class GoogleNews:
         """Don't remove this, will affect old version user when upgrade"""
         self.set_time_range(start, end)
 
-    def set_encode(self, encode: str):
-        self.__encode = encode
-
     def set_topic(self, topic: str):
         self.__topic = topic
 
     def set_section(self, section: str):
         self.__section = section
-
-    def setencode(self, encode: str):
-        """Don't remove this, will affect old version user when upgrade"""
-        self.set_encode(encode)
 
     def search(self, key: str):
         """
@@ -146,9 +137,7 @@ class GoogleNews:
         Parameters:
         key = the search term
         """
-        self.__key = key
-        if self.__encode != "":
-            self.__key = quote(self.__key.encode(self.__encode))
+        self.__key = quote(key)
         self.get_page()
 
     def build_response(self):
@@ -296,7 +285,7 @@ class GoogleNews:
         else:
             if self.__period != "":
                 key += f"when:{self.__period}"
-        key = quote(key.encode(self.__encode))
+        key = quote(key)
         start = f'{self.__start[-4:]}-{self.__start[:2]}-{self.__start[3:5]}'
         end = f'{self.__end[-4:]}-{self.__end[:2]}-{self.__end[3:5]}'
 
