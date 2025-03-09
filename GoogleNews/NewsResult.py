@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TypedDict
 
 
-class Result(TypedDict):
+class NewsResult(TypedDict):
     title: str
     media: str
     date: str
