@@ -6,7 +6,9 @@ class NewsResult(TypedDict):
     title: str
     media: str
     date: str
-    datetime: datetime
+    datetime: datetime | None
     desc: str
     link: str
     img: str
+    site: str | None
+    reporter: str | None
