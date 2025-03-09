@@ -7,7 +7,7 @@ import dateparser
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
-from .models import Result
+from .NewsResult import NewsResult
 
 
 class GoogleNews:
@@ -40,7 +40,7 @@ class GoogleNews:
     _start: str | None
     _end: str | None
 
-    _results: list[Result]
+    _results: list[NewsResult]
     _total_count: int
 
     _exception: bool
@@ -125,7 +125,7 @@ class GoogleNews:
         Parameter:
         page = number of the page to be retrieved
         """
-        results: list[Result] = []
+        results: list[NewsResult] = []
         try:
             if self._start != "" and self._end != "":
                 url = "https://www.google.com/search?q={}&lr=lang_{}&biw=1920&bih=976&source=lnt&&tbs=lr:lang_1{},cdr:1,cd_min:{},cd_max:{},sbd:1&tbm=nws&start={}".format(self._search_key,self._lang,self._lang,self._start,self._end,(10 * (page - 1)))
