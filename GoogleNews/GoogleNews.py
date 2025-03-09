@@ -1,6 +1,6 @@
 import logging
 import re
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlparse, urlunparse
 from urllib.request import Request, urlopen
 
 import dateparser
@@ -171,7 +171,7 @@ class GoogleNews:
                     'date': tmp_date.strip(),
                     'datetime': dateparser.parse(tmp_date),
                     'desc': desc,
-                    'link': link,
+                    'link': GoogleNews.fix_url(link),
                     'img': img
                 })
         except Exception as e_parser:
@@ -231,7 +231,7 @@ class GoogleNews:
                     'date': tmp_date.strip(),
                     'datetime': dateparser.parse(tmp_date),
                     'desc': desc,
-                    'link': link,
+                    'link': GoogleNews.fix_url(link),
                     'img': tmp_img
                 })
         except Exception as e_parser:
@@ -331,15 +331,17 @@ class GoogleNews:
                     except:
                         reporter = None
                     # collection
-                    self._results.append({'title':title,
-                                        'desc':desc,
-                                        'date':date,
-                                        'datetime': dateparser.parse(date),
-                                        'link':link,
-                                        'img':img,
-                                        'media':media,
-                                        'site':site,
-                                        'reporter':reporter})
+                    self._results.append({
+                        'title': title,
+                        'desc': desc,
+                        'date': date,
+                        'datetime': dateparser.parse(date),
+                        'link': GoogleNews.fix_url(link),
+                        'img': img,
+                        'media': media,
+                        'site': site,
+                        'reporter': reporter
+                    })
                 except Exception as e_article:
                     print(e_article)
         except Exception as e_parser:
@@ -395,3 +397,48 @@ class GoogleNews:
 
         result = soup.find_all("a", attrs={'data-ved': True})
         return result
+
+    @classmethod
+    def fix_url(cls, url: str):
+        url = url.removeprefix("/url?q=")
+
+        return cls.remove_query_params_from_url(
+            cls.fix_malformed_query_string(url)
+        )
+
+    @staticmethod
+    def fix_malformed_query_string(url: str):
+        url = unquote(unquote(url))
+        """ Sometimes the url comes double url encoded """
+
+        if "?" not in url and "&" in url:
+            position_of_first_ampersand = url.find("&")
+            url = (
+                url[:position_of_first_ampersand]
+                + "?"
+                + url[position_of_first_ampersand + 1 :]
+            )
+
+        return url
+
+    @staticmethod
+    def remove_query_params_from_url(url: str):
+        """
+        Remove `sa`, `usg` and `ved` query parameters from url,
+        those parameters break opening the article
+        """
+
+        parsed_url = urlparse(url)
+
+        # Parse the query string into a dictionary
+        query_params = parse_qs(parsed_url.query)
+        query_params.pop("sa", None)
+        query_params.pop("usg", None)
+        query_params.pop("ved", None)
+
+        # Reconstruct the query string
+        new_query = urlencode(query_params, doseq=True)
+
+        # Reconstruct the URL
+        return urlunparse(parsed_url._replace(query=new_query))
+
